@@ -64,23 +64,23 @@ def add_phone_for_client(conn, phone, email):
 def update_client(conn, email, name=None, surname=None, new_email=None, phone=None, new_phone=None):
     """Функция, позволяющая изменить данные о клиенте
     для выбора нужного нам клиента, будем использовать его email"""
-    query_upd = ''
+    query_upd = []
+    params = []
     cur = conn.cursor()
     cur.execute("select id from clients where email=%s", (email,))
     client_id = cur.fetchall()
     if name:
-        query_upd += "name='%s'" % name
+        query_upd.append("name=%s")
+        params.append(name)
     if surname:
-        if len(query_upd) > 0:
-            query_upd += ', '
-        query_upd += "surname='%s'" % surname
+        query_upd.append("surname=%s")
+        params.append(surname)
     if new_email:
-        if len(query_upd) > 0:
-            query_upd += ', '
-        query_upd += "email='%s'" % new_email
+        query_upd.append("email=%s")
+        params.append(new_email)
     if name or surname or new_email:
-        query_update_client = "update clients set " + query_upd + " where email=%s;"
-        cur.execute(query_update_client, (email, ))
+        query_update_client = "update clients set " + ', '.join(query_upd) + " where email=%s;"
+        cur.execute(query_update_client, tuple(params + [email]))
 
     query_update_phone = """update phones 
                         set phone = %s
@@ -99,7 +99,7 @@ def del_phone(conn, phone, email):
     phone = phone.replace('+', '')
     cur = conn.cursor()
     client_id = cur.execute("""select id from clients
-                            where email = %s""", (email,))
+                            where email = %s;""", (email,))
     query = """delete from phones
             where phone = %s and client_id = %s;"""
     cur.execute(query, (phone, client_id))
@@ -115,42 +115,63 @@ def del_client(conn, email):
     conn.commit()
 
 
-def find_client(conn, name=None, surname=None, email=None, phone=None):
+def find_client(conn, name='%', surname='%', email='%', phone=None):
     """Функция, позволяющая найти клиента по его данным: имени, фамилии, email или телефону"""
     cur = conn.cursor()
-    if name:
-        query = """select c.*, p.phone from clients c
-                left join phones p on c.id = p.client_id
-                where c.name like %s"""
-        cur.execute(query, ('%' + name + '%',))
-        answer = cur.fetchall()
-        for i in answer:
-            print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
-    if surname:
-        query = """select c.*, p.phone from clients c
-                left join phones p on c.id = p.client_id
-                where c.surname like %s"""
-        cur.execute(query, ('%' + surname + '%',))
-        answer = cur.fetchall()
-        for i in answer:
-            print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
-    if email:
-        query = """select c.*, p.phone from clients c
-                left join phones p on c.id = p.client_id
-                where c.email = %s"""
-        cur.execute(query, (email,))
-        answer = cur.fetchall()
-        for i in answer:
-            print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
     if phone:
-        phone = phone.replace('+', '')
         query = """select c.*, p.phone from clients c
-                left join phones p on c.id = p.client_id
-                where p.phone = %s"""
-        cur.execute(query, (phone,))
+                        left join phones p on c.id = p.client_id
+                        where c.name like %s and c.surname like %s and c.email like %s and phone like %s"""
+        cur.execute(query, ('%' + name + '%', '%' + surname + '%', '%' + email + '%', phone))
         answer = cur.fetchall()
         for i in answer:
             print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
+    else:
+        query = """select c.*, p.phone from clients c
+                left join phones p on c.id = p.client_id
+                where c.name like %s and c.surname like %s and c.email like %s"""
+        cur.execute(query, ('%' + name + '%', '%' + surname + '%', '%' + email + '%'))
+        answer = cur.fetchall()
+        for i in answer:
+            print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
+
+
+# def find_client(conn, name='%', surname=None, email=None, phone=None):
+#     """Функция, позволяющая найти клиента по его данным: имени, фамилии, email или телефону"""
+#     cur = conn.cursor()
+#     if name:
+#         query = """select c.*, p.phone from clients c
+#                 left join phones p on c.id = p.client_id
+#                 where c.name like %s"""
+#         cur.execute(query, ('%' + name + '%',))
+#         answer = cur.fetchall()
+#         for i in answer:
+#             print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
+#     if surname:
+#         query = """select c.*, p.phone from clients c
+#                 left join phones p on c.id = p.client_id
+#                 where c.surname like %s"""
+#         cur.execute(query, ('%' + surname + '%',))
+#         answer = cur.fetchall()
+#         for i in answer:
+#             print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
+#     if email:
+#         query = """select c.*, p.phone from clients c
+#                 left join phones p on c.id = p.client_id
+#                 where c.email = %s"""
+#         cur.execute(query, (email,))
+#         answer = cur.fetchall()
+#         for i in answer:
+#             print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
+#     if phone:
+#         phone = phone.replace('+', '')
+#         query = """select c.*, p.phone from clients c
+#                 left join phones p on c.id = p.client_id
+#                 where p.phone = %s"""
+#         cur.execute(query, (phone,))
+#         answer = cur.fetchall()
+#         for i in answer:
+#             print(f'id клиента: {i[0]}, имя: {i[1]}, фамилия: {i[2]}, email: {i[3]}, телефон: {i[4]}')
 
 
 def show_all_clients(conn):
